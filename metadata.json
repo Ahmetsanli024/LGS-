@@ -1,0 +1,6 @@
+{
+  "name": "LGS & Ara Sınıf Pro",
+  "description": "LGS ve ara sınıflar için kapsamlı öğrenci planlama uygulaması. Konu bazlı ve zaman bazlı çizelgeleme modülleri ile verimli ders programı oluşturma.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

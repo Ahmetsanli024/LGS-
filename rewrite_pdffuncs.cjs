@@ -1,0 +1,115 @@
+const fs = require('fs');
+
+const generateReplacement = (id, orientationStr, filenameStr) => `const handleDownloadPdf = async () => {
+    const el = document.getElementById('${id}');
+    if (!el) return;
+
+    const exportRoot = document.createElement('div');
+    exportRoot.style.position = 'absolute';
+    exportRoot.style.left = '-9999px';
+    exportRoot.style.top = '-9999px';
+    document.body.appendChild(exportRoot);
+
+    const clone = el.cloneNode(true);
+    clone.style.width = el.scrollWidth + 'px';
+    clone.style.height = 'max-content';
+    clone.style.maxWidth = 'none';
+    clone.style.maxHeight = 'none';
+    clone.style.overflow = 'visible';
+    clone.style.boxSizing = 'border-box';
+    clone.style.margin = '0 auto';
+    exportRoot.appendChild(clone);
+
+    const originalInputs = el.querySelectorAll('input, textarea');
+    const clonedInputs = clone.querySelectorAll('input, textarea');
+    originalInputs.forEach((input, index) => {
+        const cInput = clonedInputs[index];
+        if (cInput) {
+            cInput.value = input.value;
+            const div = document.createElement('div');
+            div.textContent = input.value;
+            div.className = input.className;
+            div.style.border = 'none';
+            div.style.outline = 'none';
+            div.style.background = 'transparent';
+            div.style.display = input.tagName === 'TEXTAREA' ? 'block' : 'inline-block';
+            div.style.whiteSpace = 'pre-wrap';
+            div.style.wordBreak = 'break-word';
+            div.style.letterSpacing = 'normal';
+            
+            if (input.placeholder === "ÖĞRENCİ ADI SOYADI" || input.placeholder === "ÖĞRENCİ İSMİ GİRİN") {
+                div.style.fontSize = '24px';
+                div.style.fontWeight = '900';
+            } else {
+                const computed = window.getComputedStyle(input);
+                div.style.color = computed.color;
+                div.style.fontSize = computed.fontSize;
+                div.style.fontWeight = computed.fontWeight;
+                div.style.textAlign = computed.textAlign;
+                div.style.fontFamily = computed.fontFamily;
+            }
+            cInput.parentNode.replaceChild(div, cInput);
+        }
+    });
+
+    try {
+      // Force text rendering optimization on the clone
+      const allElements = clone.querySelectorAll('*');
+      allElements.forEach(child => {
+         child.style.textRendering = 'optimizeLegibility';
+         child.style.fontVariantLigatures = 'none';
+      });
+
+      const dataUrl = await toPng(clone, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: '#ffffff'
+      });
+      
+      const pdf = new jsPDF({
+        orientation: ${orientationStr},
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgRatio = clone.offsetWidth / clone.offsetHeight;
+      
+      let finalWidth = pdfWidth;
+      let finalHeight = finalWidth / imgRatio;
+      
+      if (finalHeight > pdfHeight) {
+          finalHeight = pdfHeight;
+          finalWidth = finalHeight * imgRatio;
+      }
+      
+      const xOffset = (pdfWidth - finalWidth) / 2;
+      const yOffset = (pdfHeight - finalHeight) / 2;
+      
+      pdf.addImage(dataUrl, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
+      pdf.save(${filenameStr});
+    } catch (error) {
+      console.error("PDF Download failed", error);
+      alert("PDF oluşturulamadı.");
+    } finally {
+      document.body.removeChild(exportRoot);
+    }
+  };`;
+
+
+function processFile(filePath, id, orientationStr, filenameStr) {
+    if (!fs.existsSync(filePath)) return;
+    let txt = fs.readFileSync(filePath, 'utf8');
+
+    // Remove the old handleDownloadPdf
+    txt = txt.replace(/const handleDownloadPdf = async \(\) => \{[\s\S]*?(?=\n  const [a-zA-Z0-9_]+ = |\n  return \()/g, generateReplacement(id, orientationStr, filenameStr) + "\n\n  ");
+    
+    fs.writeFileSync(filePath, txt);
+}
+
+processFile('./components/Module4.tsx', 'classic-planner-capture', "'landscape'", "`Haftalik_Plan_${studentName?.replace(/\\s+/g, '_') || 'Ogrenci'}.pdf`");
+processFile('./components/Module14.tsx', 'module14-capture', "'portrait'", "`Haftalik_Calisma_Programi_${studentName?.replace(/\\s+/g, '_') || 'Ogrenci'}.pdf`");
+processFile('./components/Module16.tsx', 'module16-capture', "'landscape'", "`Performans_Degerlendirme_${studentName?.replace(/\\s+/g, '_') || 'Ogrenci'}.pdf`");
+
+console.log('Rebuilt download PDF successfully');
